@@ -48,7 +48,7 @@ if image:
     try:
         requests.post(url, data=payload, headers=headers, auth=auth)
     except Exception, e:
-        pass
+        print e
 
 content = ''
 text = d('#tabs_vnd-1')
@@ -80,4 +80,6 @@ auth = HTTPBasicAuth(campfire_auth, 'X')
 try:
     requests.post(url, data=payload, headers=headers, auth=auth)
 except Exception, e:
-    pass    
+    print e
+
+print 'done. happy eating!'
