@@ -15,17 +15,28 @@ from pyquery import PyQuery as pq
 import re
 import os
 import requests
+import datetime
 from requests.auth import HTTPBasicAuth
 
 campfire_newline = '&#xA;'
 
-if os.environ.has_key('USERNAME') and os.environ.has_key('PASSWORD'):
-    username = os.environ['USERNAME']
-    password = os.environ['PASSWORD']
-    room_id = os.environ['ROOM_ID']
-    campfire_auth = os.environ['CAMPFIRE_AUTH']
-else:
-    raise SystemExit('need cater2me username/password env variables set')
+try:
+    username        = os.environ['USERNAME']
+    password        = os.environ['PASSWORD']
+    room_id         = os.environ['CAMPFIRE_ROOM']
+    campfire_auth   = os.environ['CAMPFIRE_AUTH']
+    campfire_domain = os.environ['CAMPFIRE_DOMAIN']
+except KeyError, e:
+    raise SystemExit('missing environment setting: %s' % e)
+
+# hack for Heroku's terrible scheduler API: 
+# only run this script on specific days of the week
+# eg; 1,3 or 1 3
+dow_list = os.environ.get('DOW_LIST')
+if dow_list:
+    today = str(datetime.datetime.now().isoweekday())
+    if today not in dow_list:
+        raise SystemExit('today is not in dow list')
 
 br = mechanize.Browser()
 cj = cookielib.LWPCookieJar()
@@ -42,7 +53,7 @@ image = d('#tabs_vnd-1 img')
 if image:
     image_src = "http://www.cater2.me" + image.attr.src
     payload = '{"message":{"body":"%s"}}' %  image_src
-    url = 'https://seatme.campfirenow.com/room/%s/speak.json' % room_id
+    url = 'https://%s.campfirenow.com/room/%s/speak.json' % (campfire_domain, room_id)
     headers = {'content-type': 'application/json'}
     auth = HTTPBasicAuth(campfire_auth, 'X')
     try:
@@ -72,9 +83,10 @@ content += good_body
 
 #fix unicode content
 content = content.encode('ascii', 'ignore')
+# print content
 
 payload = '<message><type>PasteMessage</type><body>%s</body></message>' % content
-url = 'https://seatme.campfirenow.com/room/%s/speak.xml' % room_id
+url = 'https://%s.campfirenow.com/room/%s/speak.xml' % (campfire_domain, room_id)
 headers = {'content-type': 'application/xml'}
 auth = HTTPBasicAuth(campfire_auth, 'X')
 try:
