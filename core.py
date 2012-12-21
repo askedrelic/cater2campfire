@@ -19,6 +19,7 @@ import datetime
 from requests.auth import HTTPBasicAuth
 
 campfire_newline = '&#xA;'
+allergy_key = 'Allergen Key: *Vegetarian, **Vegan, (G) Gluten Safe, (D) Dairy Safe, (N) Nut Safe, (E) Egg Safe, (S) Soy Safe.'
 
 try:
     username        = os.environ['USERNAME']
@@ -56,46 +57,58 @@ br['pwd'] = password
 resp = br.submit()
 d = pq(resp.read())
 
-image = d('#tabs_vnd-1 img')
-if image:
-    output['image_src'] = image.attr.src
+#get company name
+try:
+    script = [x.text for x in d('script') if x.text and 'json' in x.text][0]
+    matches = re.search(r'calendar\/(.*)\.json', script)
+    company = matches.groups()[0]
+except Exception,e:
+    raise e
+
+meal_json_url = 'http://cater2.me/VeriteCo-TimelineJS/calendar/%s.json' % company
+
+cater_info = requests.get(meal_json_url).json()
+now = datetime.datetime.now().strftime("%Y,%m,%d")
+meals = cater_info['timeline']['date']
+today = filter(lambda x: now in x['startDate'], meals)[0]
+
+
+
+output['image_src'] = "http://www.cater2.me" + today['asset']['media']
+text = today['text']
 
 output['text'] += "Today's Lunch:"
 output['text'] += campfire_newline
 
-text = d('#tabs_vnd-1')
-original_text = text.text()
-prefix = re.sub('Menu.*', '', original_text)
-output['text'] += prefix
-#try to remove outer html tags?
-body = pq(text.children('div').html())
+# text = d('#tabs_vnd-1')
+# original_text = text.text()
+# prefix = re.sub('Menu.*', '', original_text)
+# output['text'] += prefix
+# #try to remove outer html tags?
+# body = pq(text.children('div').html())
 
-#kill links
-body.children('div').children().children('a').remove()
-body.children('h3').remove()
-body = body.html().strip().strip('\n').strip('\t')
-good_body = body.replace('<u/>','').replace(u'<br/>','').replace('<b>','').replace('</b>',campfire_newline).replace('</span>',campfire_newline).replace('<div>','').replace('</div>','').strip()
-good_body = re.sub('<span.*?>','',good_body)
-good_body = re.sub('Items have been.*\n*','',good_body, re.DOTALL|re.MULTILINE)
+body = text
+body = body.strip('\n').strip('\t')
+body = re.sub('(<.?div>|<.?b>|<span.*?>|<.?br>)','',body)
+body = body.strip('Mouse over items to see your allergens')
+body = body.replace('&', 'and')
+body = body.replace('</span>', campfire_newline)
 
-#specific formatting:
-good_body = good_body.replace('Allergen Key:', campfire_newline + 'Allergen Key:')
-good_body = good_body.replace(' *Vegetarian', '*Vegetarian')
+# dedupe newlines, final cleanup
+body = campfire_newline.join([x.strip() for x in body.split(campfire_newline) if x])
+body += campfire_newline*2 + allergy_key
 
-output['text'] += campfire_newline
-output['text'] += campfire_newline
-output['text'] += good_body
+output['text'] += body
 
-#fix unicode content
-output['text'] = output['text'].encode('ascii', 'ignore')
+#fix unicode content; entree
+output['text'] = output['text'].encode('utf-8')
 
 if testing:
     print output['image_src']
     print output['text']
 else:
     if output['image_src']:
-        image_src = "http://www.cater2.me" + output['image_src']
-        payload = '{"message":{"body":"%s"}}' %  image_src
+        payload = '{"message":{"body":"%s"}}' %  output['image_src']
         url = 'https://%s.campfirenow.com/room/%s/speak.json' % (campfire_domain, room_id)
         headers = {'content-type': 'application/json'}
         auth = HTTPBasicAuth(campfire_auth, 'X')
