@@ -36,10 +36,11 @@ testing = os.environ.get('TESTING')
 # only run this script on specific days of the week
 # eg; 1,3 or 1 3
 dow_list = os.environ.get('DOW_LIST')
+now = datetime.datetime.now().strftime("%Y,%m,%d")
 if dow_list:
     today = str(datetime.datetime.now().isoweekday())
     if today not in dow_list:
-        raise SystemExit('today is not in dow list')
+        raise SystemExit('Today (%s) is not in dow list' % now)
 
 output = {
     'image_src': '',
@@ -68,11 +69,11 @@ except Exception,e:
 meal_json_url = 'http://cater2.me/VeriteCo-TimelineJS/calendar/%s.json' % company
 
 cater_info = requests.get(meal_json_url).json()
-now = datetime.datetime.now().strftime("%Y,%m,%d")
 meals = cater_info['timeline']['date']
-today = filter(lambda x: now in x['startDate'], meals)[0]
-
-
+try:
+    today = filter(lambda x: now in x['startDate'], meals)[0]
+except IndexError:
+    raise SystemExit('There is no food scheduled for delivery today (%s)' % now)
 
 output['image_src'] = "http://www.cater2.me" + today['asset']['media']
 text = today['text']
