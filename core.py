@@ -27,6 +27,7 @@ try:
     room_id         = os.environ['CAMPFIRE_ROOM']
     campfire_auth   = os.environ['CAMPFIRE_AUTH']
     campfire_domain = os.environ['CAMPFIRE_DOMAIN']
+    company         = os.environ['COMPANY']
 except KeyError, e:
     raise SystemExit('missing environment setting: %s' % e)
 
@@ -47,24 +48,26 @@ output = {
     'text': '',
 }
 
-br = mechanize.Browser()
-cj = cookielib.LWPCookieJar()
-br.set_cookiejar(cj)
-br.set_handle_equiv(True)
-br.open('http://cater2.me/login/')
-br.select_form(nr=0)
-br['username'] = username
-br['pwd'] = password
-resp = br.submit()
-d = pq(resp.read())
+# br = mechanize.Browser()
+# cj = cookielib.LWPCookieJar()
+# br.set_cookiejar(cj)
+# br.set_handle_equiv(True)
+# br.open('http://cater2.me/login/')
+# br.select_form(nr=0)
+# br['username'] = username
+# br['pwd'] = password
+# resp = br.submit()
+# d = pq(resp.read())
 
-#get company name
-try:
-    script = [x.text for x in d('script') if x.text and 'json' in x.text][0]
-    matches = re.search(r'calendar\/(.*)\.json', script)
-    company = matches.groups()[0]
-except Exception,e:
-    raise e
+# #get company name
+# try:
+#     script = [x.text for x in d('script') if x.text and 'json' in x.text][0]
+#     matches = re.search(r'calendar\/(.*)\.json', script)
+#     company = matches.groups()[0]
+# except Exception,e:
+#     raise e
+
+#meh, ignore logging in
 
 meal_json_url = 'http://cater2.me/VeriteCo-TimelineJS/calendar/%s.json' % company
 
